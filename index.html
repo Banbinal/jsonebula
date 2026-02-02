@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Visual JSON explorer that transforms API responses into interactive knowledge graphs">
+  <meta name="author" content="json-nebula">
+  <meta property="og:title" content="json-nebula">
+  <meta property="og:description" content="Visual JSON explorer that transforms API responses into interactive knowledge graphs">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <title>json-nebula</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <!-- Cytoscape.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <!-- Cytoscape Navigator (minimap) -->
+  <script src="https://unpkg.com/cytoscape-navigator@2.0.1/cytoscape-navigator.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/cytoscape-navigator@2.0.1/cytoscape.js-navigator.css">
+  <!-- CodeMirror -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/lint.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/lint/json-lint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jsonlint/1.6.0/jsonlint.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1 class="logo">json-nebula</h1>
+        <span class="version-badge">V5</span>
+      </div>
+      <div class="header-center">
+        <div class="query-bar">
+          <div class="query-input-wrapper">
+            <input type="text" id="query-input" placeholder='Search: client.status = "active"' autocomplete="off">
+            <div class="query-autocomplete hidden" id="query-autocomplete">
+              <!-- Autocomplete suggestions rendered here -->
+            </div>
+          </div>
+          <button class="btn btn-icon" id="btn-query-help" title="Query syntax help">?</button>
+          <button class="btn btn-icon" id="btn-query-clear" title="Clear query">&times;</button>
+        </div>
+        <div class="quick-filters" id="quick-filters">
+          <button class="btn btn-chip" data-filter="mapped" title="Show only mapped entities">Mapped</button>
+          <button class="btn btn-chip" data-filter="orphans" title="Show disconnected nodes">Orphans</button>
+          <button class="btn btn-chip" data-filter="hubs" title="Show highly connected nodes (>5)">Hubs</button>
+        </div>
+        <div class="call-filters" id="call-filters"></div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="btn-mapping">
+          Mapping
+          <span class="badge hidden" id="mapping-badge">0</span>
+        </button>
+        <button class="btn btn-secondary" id="btn-load-example">Example</button>
+        <button class="btn btn-secondary" id="btn-import">Import</button>
+        <button class="btn btn-secondary" id="btn-export">Export</button>
+        <input type="file" id="import-file-input" accept=".json" style="display: none;">
+      </div>
+    </header>
+
+    <!-- Main Layout -->
+    <main class="main-v5">
+      <!-- Left Panel: Calls + Editor -->
+      <aside class="left-panel" id="left-panel">
+        <!-- Collapse Button -->
+        <button class="btn-collapse-panel" id="btn-collapse-left" title="Collapse panel">‹</button>
+
+        <!-- Calls Tabs -->
+        <div class="calls-section">
+          <div class="calls-header">
+            <span class="section-title">Calls</span>
+            <button class="btn btn-icon" id="btn-add-call" title="Add new call">+</button>
+          </div>
+          <div class="calls-list" id="calls-list">
+            <!-- Call tabs rendered here -->
+          </div>
+        </div>
+
+        <!-- Resize Handle -->
+        <div class="resize-handle-h" id="resize-handle-editor"></div>
+
+        <!-- JSON Editor -->
+        <div class="editor-section">
+          <div class="editor-header">
+            <span class="section-title" id="editor-title">JSON Editor</span>
+            <div class="editor-status">
+              <span class="status-indicator" id="json-status"></span>
+            </div>
+          </div>
+          <div class="editor-container" id="editor-container">
+            <!-- CodeMirror rendered here -->
+          </div>
+          <div class="editor-actions">
+            <button class="btn btn-small" id="btn-format-json">Format</button>
+            <button class="btn btn-small" id="btn-copy-json">Copy</button>
+            <button class="btn btn-small btn-danger" id="btn-delete-call">Delete Call</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Expand Button (visible when collapsed) -->
+      <button class="btn-expand-panel hidden" id="btn-expand-left" title="Expand panel">›</button>
+
+      <!-- Center: Graph -->
+      <section class="graph-section">
+        <div class="graph-toolbar">
+          <div class="graph-filter">
+            <label class="checkbox-label">
+              <input type="checkbox" id="chk-hide-unmapped">
+              <span>Hide unmapped</span>
+            </label>
+          </div>
+          <!-- Focus Mode Controls -->
+          <div class="focus-controls hidden" id="focus-controls">
+            <span class="focus-label">Depth:</span>
+            <input type="range" id="focus-depth" min="1" max="5" value="2" class="focus-slider">
+            <span class="focus-depth-value" id="focus-depth-value">2</span>
+            <button class="btn btn-small btn-exit-focus" id="btn-exit-focus">Exit Focus</button>
+          </div>
+          <!-- Path Finder Controls -->
+          <div class="pathfinder-controls hidden" id="pathfinder-controls">
+            <span class="pathfinder-label">Path:</span>
+            <span class="pathfinder-node" id="pathfinder-from">?</span>
+            <span class="pathfinder-arrow">→</span>
+            <span class="pathfinder-node" id="pathfinder-to">?</span>
+            <button class="btn btn-small btn-find-path" id="btn-find-path" disabled>Find Path</button>
+            <button class="btn btn-small btn-clear-path" id="btn-clear-path">Clear</button>
+          </div>
+          <div class="graph-stats" id="graph-stats">
+            <span>0 nodes</span>
+            <span>0 edges</span>
+          </div>
+          <div class="collapse-controls hidden" id="collapse-controls">
+            <span class="collapsed-count" id="collapsed-count">0 collapsed</span>
+            <button class="btn btn-small" id="btn-expand-all" title="Expand all collapsed nodes">Expand All</button>
+          </div>
+          <div class="graph-actions">
+            <button class="btn btn-small" id="btn-layout" title="Reorganize layout">Layout</button>
+            <button class="btn btn-small" id="btn-fit" title="Fit to view">Fit</button>
+            <button class="btn btn-small" id="btn-toggle-minimap" title="Toggle minimap">Map</button>
+            <button class="btn btn-small" id="btn-clear-all">Clear All</button>
+          </div>
+        </div>
+        <div id="graph-container" class="graph-canvas">
+          <!-- Empty state -->
+          <div class="graph-empty" id="graph-empty">
+            <div class="empty-content">
+              <h2>Paste JSON to explore</h2>
+              <p>Paste JSON in the editor on the left, or load an example.</p>
+              <button class="btn btn-primary" id="btn-load-example-empty">Load CRM Example</button>
+            </div>
+          </div>
+          <!-- Entity Legend (inside graph container) -->
+          <div class="graph-legend" id="graph-legend">
+            <!-- Populated dynamically -->
+          </div>
+          <!-- Minimap Navigator -->
+          <div class="graph-minimap" id="graph-minimap"></div>
+          <!-- Hidden Nodes Panel (inside graph container) -->
+          <div class="hidden-nodes-panel hidden" id="hidden-nodes-panel">
+            <div class="hidden-nodes-header">
+              <span>Hidden types:</span>
+              <button class="btn btn-tiny" id="btn-show-all-hidden">Show all</button>
+            </div>
+            <div class="hidden-nodes-list" id="hidden-nodes-list">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+        <!-- Context Menu (fixed positioning, outside container) -->
+        <div class="context-menu" id="graph-context-menu">
+          <div class="context-menu-item" data-action="focus">Focus on this</div>
+          <div class="context-menu-item" data-action="hide-type">Hide this type</div>
+          <div class="context-menu-item" data-action="show-all">Show all types</div>
+          <div class="context-menu-divider"></div>
+          <div class="context-menu-item" data-action="path-from">Set as path start</div>
+          <div class="context-menu-item" data-action="path-to">Set as path end</div>
+          <div class="context-menu-divider"></div>
+          <div class="context-menu-item" data-action="expand-children">Expand children</div>
+          <div class="context-menu-item" data-action="collapse">Collapse</div>
+          <div class="context-menu-divider"></div>
+          <div class="context-menu-item" data-action="copy-json">Copy JSON</div>
+          <div class="context-menu-item" data-action="copy-path">Copy Path</div>
+        </div>
+      </section>
+
+      <!-- Resize Handle -->
+      <div class="resize-handle-v hidden" id="resize-handle-right"></div>
+
+      <!-- Right Panel: Node Details -->
+      <aside class="right-panel collapsed" id="right-panel">
+        <div class="panel-header">
+          <h2>Details</h2>
+          <button class="btn btn-icon" id="btn-close-sidebar">&times;</button>
+        </div>
+        <div class="panel-content" id="node-details">
+          <!-- Node details rendered here -->
+        </div>
+      </aside>
+    </main>
+
+    <!-- Mapping Modal -->
+    <div class="modal" id="modal-mapping">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content modal-large">
+        <div class="modal-header">
+          <h3>Mapping Configuration</h3>
+          <button class="btn btn-icon modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="mapping-tabs">
+            <button class="mapping-tab active" data-tab="entities">Entities</button>
+            <button class="mapping-tab" data-tab="extractions">Extractions</button>
+            <button class="mapping-tab" data-tab="relations">Relations</button>
+          </div>
+
+          <!-- Entities Tab -->
+          <div class="mapping-panel active" id="panel-entities">
+            <div class="panel-toolbar">
+              <button class="btn btn-small" id="btn-add-entity">+ Add Entity</button>
+            </div>
+            <div class="panel-list" id="entity-list">
+              <!-- Entity cards rendered here -->
+            </div>
+          </div>
+
+          <!-- Extractions Tab -->
+          <div class="mapping-panel" id="panel-extractions">
+            <div class="panel-toolbar">
+              <label>Call:</label>
+              <select id="extraction-call-select">
+                <!-- Options populated from calls -->
+              </select>
+              <button class="btn btn-small" id="btn-add-extraction">+ Add Extraction</button>
+            </div>
+            <div class="panel-list" id="extraction-list">
+              <!-- Extraction configs rendered here -->
+            </div>
+          </div>
+
+          <!-- Relations Tab -->
+          <div class="mapping-panel" id="panel-relations">
+            <div class="panel-toolbar">
+              <button class="btn btn-small" id="btn-add-relation">+ Add Relation</button>
+            </div>
+            <div class="panel-list" id="relation-list">
+              <!-- Relation configs rendered here -->
+            </div>
+          </div>
+
+          <!-- Suggestions Section -->
+          <div class="suggestions-section hidden" id="suggestions-section">
+            <h4>Suggestions</h4>
+            <div class="suggestions-list" id="suggestions-list">
+              <!-- Suggestions rendered here -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary modal-close">Close</button>
+          <button class="btn btn-primary" id="btn-apply-mapping">Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+  </div>
+
+  <!-- App Scripts -->
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

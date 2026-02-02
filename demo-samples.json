@@ -1,0 +1,188 @@
+{
+  "_instructions": "Copy and paste one of these JSON samples into SI Explorer's 'Import JSON Data' modal. Select the matching API Call type before importing.",
+
+  "GET_Client_Details_Sample_1": {
+    "_apiCall": "GET Client Details",
+    "_description": "A client with 2 contacts (nested intra-call relationship)",
+    "data": {
+      "id": 1,
+      "name": "Acme Corporation",
+      "siret": "12345678901234",
+      "status": "active",
+      "address": {
+        "street": "123 Main Street",
+        "city": "Paris",
+        "zip": "75001"
+      },
+      "contacts": [
+        {
+          "id": 101,
+          "fullName": "John Smith",
+          "email": "john@acme.com",
+          "phone": "+33612345678",
+          "role": "CEO"
+        },
+        {
+          "id": 102,
+          "fullName": "Jane Doe",
+          "email": "jane@acme.com",
+          "phone": "+33687654321",
+          "role": "CFO"
+        }
+      ]
+    }
+  },
+
+  "GET_Client_Details_Sample_2": {
+    "_apiCall": "GET Client Details",
+    "_description": "Another client with 1 contact",
+    "data": {
+      "id": 2,
+      "name": "TechStart SAS",
+      "siret": "98765432109876",
+      "status": "active",
+      "address": {
+        "street": "456 Tech Avenue",
+        "city": "Lyon",
+        "zip": "69001"
+      },
+      "contacts": [
+        {
+          "id": 201,
+          "fullName": "Marie Martin",
+          "email": "marie@techstart.fr",
+          "phone": "+33699887766",
+          "role": "Directrice"
+        }
+      ]
+    }
+  },
+
+  "GET_Dossier_Sample_1": {
+    "_apiCall": "GET Dossier",
+    "_description": "A dossier with 2 contrats and 2 factures (demonstrates nested extraction)",
+    "data": {
+      "id": 1001,
+      "reference": "DOS-2024-001",
+      "client_id": 1,
+      "status": "en_cours",
+      "dateCreation": "2024-01-15",
+      "contrats": [
+        {
+          "id": 5001,
+          "numero": "CTR-2024-001",
+          "type": "maintenance",
+          "montant": 12000,
+          "dateDebut": "2024-02-01",
+          "dateFin": "2025-01-31"
+        },
+        {
+          "id": 5002,
+          "numero": "CTR-2024-002",
+          "type": "support",
+          "montant": 5000,
+          "dateDebut": "2024-02-01",
+          "dateFin": "2024-12-31"
+        }
+      ],
+      "factures": [
+        {
+          "id": 9001,
+          "numero": "FAC-2024-0001",
+          "dossier_id": 1001,
+          "montant": 4000,
+          "dateEmission": "2024-02-01",
+          "statut": "payee"
+        },
+        {
+          "id": 9002,
+          "numero": "FAC-2024-0002",
+          "dossier_id": 1001,
+          "montant": 4000,
+          "dateEmission": "2024-05-01",
+          "statut": "en_attente"
+        }
+      ]
+    }
+  },
+
+  "GET_Dossier_Sample_2": {
+    "_apiCall": "GET Dossier",
+    "_description": "Another dossier linked to client 2 (will show inter-call edge after import)",
+    "data": {
+      "id": 1002,
+      "reference": "DOS-2024-002",
+      "client_id": 2,
+      "status": "cloture",
+      "dateCreation": "2024-03-01",
+      "contrats": [
+        {
+          "id": 5003,
+          "numero": "CTR-2024-003",
+          "type": "consulting",
+          "montant": 8000,
+          "dateDebut": "2024-03-15",
+          "dateFin": "2024-06-15"
+        }
+      ],
+      "factures": [
+        {
+          "id": 9003,
+          "numero": "FAC-2024-0003",
+          "dossier_id": 1002,
+          "montant": 8000,
+          "dateEmission": "2024-06-15",
+          "statut": "payee"
+        }
+      ]
+    }
+  },
+
+  "LIST_Clients_Sample": {
+    "_apiCall": "LIST Clients",
+    "_description": "An array of clients (no nested contacts in this response)",
+    "data": [
+      {
+        "id": 3,
+        "name": "Global Services Inc",
+        "siret": "11122233344455",
+        "status": "active"
+      },
+      {
+        "id": 4,
+        "name": "Innovation Labs",
+        "siret": "55544433322211",
+        "status": "prospect"
+      },
+      {
+        "id": 5,
+        "name": "DataCorp SA",
+        "siret": "99988877766655",
+        "status": "inactive"
+      }
+    ]
+  },
+
+  "LIST_Factures_Sample": {
+    "_apiCall": "LIST Factures",
+    "_description": "An array of standalone factures (will create inter-call edges to dossiers)",
+    "data": [
+      {
+        "id": 9010,
+        "numero": "FAC-2024-0010",
+        "dossier_id": 1001,
+        "montant": 2500,
+        "dateEmission": "2024-08-01",
+        "statut": "en_attente"
+      },
+      {
+        "id": 9011,
+        "numero": "FAC-2024-0011",
+        "dossier_id": 1002,
+        "montant": 3000,
+        "dateEmission": "2024-09-01",
+        "statut": "payee"
+      }
+    ]
+  }
+}

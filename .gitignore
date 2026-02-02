@@ -1,0 +1,39 @@
+# Claude Code
+.claude/
+
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build artifacts (if any)
+dist/
+build/
+.cache/
+
+# Temporary files
+*.tmp
+*.temp
+
+Architecture.md
+
+.gitignore
