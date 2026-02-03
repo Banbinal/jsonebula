@@ -231,6 +231,9 @@ export function applyQueryHighlight(cy, query) {
   }
 
   if (count === 0) {
+    // Dim all nodes to indicate no results
+    cy.nodes().not('[isCompound = "true"]').addClass('dimmed');
+    cy.edges().addClass('dimmed');
     return { count: 0, error: null };
   }
 

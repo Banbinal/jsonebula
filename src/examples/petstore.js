@@ -102,13 +102,6 @@ export const petstoreConfig = {
         { entity: "facture", path: "$[*]" }
       ]
     },
-    get_client_crm: {
-      label: "GET Client (CRM)",
-      description: "Returns client from CRM system - may have different values (conflicts)",
-      extractions: [
-        { entity: "client", path: "$" }
-      ]
-    }
   },
   relations: [
     { from: "client", to: "dossier", toFk: "client_id" },
@@ -192,19 +185,4 @@ export const petstoreData = {
     { id: 3, name: "Global Industries", siret: "55566677788899", status: "prospect", totalDossiers: 0, chiffreAffaires: 0 }
   ],
 
-  // Sample: GET /clients/1 from CRM system (different source with CONFLICTING data)
-  // Illustre les CONFLITS : même client avec des valeurs différentes
-  get_client_crm: {
-    id: 1,
-    name: "ACME Corp.",                    // CONFLIT: "Acme Corporation" vs "ACME Corp."
-    siret: "12345678901234",               // Identique
-    status: "premium",                     // CONFLIT: "active" vs "premium"
-    email: "contact@acme-corp.com",        // Nouveau champ (pas de conflit)
-    address: {
-      street: "123 Business Ave",
-      city: "Paris",
-      zip: "75008"
-    },
-    lastContact: "2024-11-15"              // Nouveau champ (pas de conflit)
-  }
 };

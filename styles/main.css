@@ -80,6 +80,31 @@ body {
 }
 
 /* ==========================================================================
+   Tooltip
+   ========================================================================== */
+
+.tooltip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  max-width: 260px;
+  padding: 6px 10px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: #1a1a1a;
+  background: #e8eaed;
+  border: none;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.tooltip.visible {
+  opacity: 1;
+}
+
+/* ==========================================================================
    App Layout
    ========================================================================== */
 
@@ -147,6 +172,39 @@ body {
 .header-actions {
   display: flex;
   gap: var(--spacing-sm);
+}
+
+.actions-dropdown {
+  position: relative;
+}
+
+.actions-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  min-width: 120px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.actions-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.actions-dropdown-item:hover {
+  background: var(--bg-hover);
 }
 
 /* ==========================================================================
@@ -423,6 +481,15 @@ body {
   flex-wrap: wrap;
 }
 
+.bar-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .query-bar {
   display: flex;
   align-items: center;
@@ -524,6 +591,7 @@ body {
 /* Quick Filters */
 .quick-filters {
   display: flex;
+  align-items: center;
   gap: var(--spacing-xs);
   margin-left: var(--spacing-sm);
 }
@@ -644,6 +712,11 @@ body {
   height: 100%;
   background-color: var(--bg-primary);
   border-radius: var(--radius-md);
+  background-image:
+    linear-gradient(rgba(48, 54, 61, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(48, 54, 61, 0.3) 1px, transparent 1px);
+  background-size: 30px 30px;
+  background-attachment: fixed;
 }
 
 /* ==========================================================================
@@ -2161,19 +2234,100 @@ select {
   overflow: hidden;
 }
 
-.graph-toolbar {
+.graph-stats-overlay {
+  position: absolute;
+  bottom: 50px;
+  left: 10px;
+  z-index: 10;
   display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-primary);
-  flex-shrink: 0;
+  gap: var(--spacing-sm);
+  color: var(--text-muted);
+  font-size: 0.625rem;
 }
 
-.graph-filter {
+.graph-overlay-toolbar {
+  position: absolute;
+  top: 140px;
+  right: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(22, 27, 34, 0.85);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 6px;
+}
+
+.overlay-toolbar-row {
   display: flex;
   align-items: center;
+  gap: 4px;
+  justify-content: center;
+}
+
+.btn-overlay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.btn-overlay:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btn-overlay-small {
+  width: 22px;
+  height: 22px;
+  font-size: 0.75rem;
+}
+
+.overlay-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.overlay-checkbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 12px;
+  height: 12px;
+}
+
+.overlay-checkbox:hover {
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-error) !important;
+  background: none;
+  border: none;
+}
+
+.btn-danger:hover {
+  background: rgba(248, 81, 73, 0.15) !important;
+}
+
+.btn-danger svg {
+  display: block;
 }
 
 .checkbox-label {
@@ -2195,11 +2349,16 @@ select {
 
 /* Focus Mode Controls */
 .focus-controls {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-xs) var(--spacing-sm);
-  background-color: var(--bg-tertiary);
+  background-color: rgba(33, 38, 45, 0.9);
   border-radius: var(--radius-sm);
   border: 1px solid var(--accent-primary);
 }
@@ -2242,11 +2401,16 @@ select {
 
 /* Path Finder Controls */
 .pathfinder-controls {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-xs) var(--spacing-sm);
-  background-color: var(--bg-tertiary);
+  background-color: rgba(33, 38, 45, 0.9);
   border-radius: var(--radius-sm);
   border: 1px solid var(--accent-warning);
 }
@@ -2303,20 +2467,13 @@ select {
   border: 1px solid var(--border-primary);
 }
 
-.graph-stats {
-  display: flex;
-  gap: var(--spacing-md);
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
 
 .collapse-controls {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: 0 var(--spacing-sm);
-  border-left: 1px solid var(--border-primary);
-  margin-left: var(--spacing-sm);
+  gap: 4px;
+  padding-top: 2px;
+  border-top: 1px solid var(--border-primary);
 }
 
 .collapse-controls.hidden {
@@ -2325,14 +2482,8 @@ select {
 
 .collapsed-count {
   color: #f0883e;
-  font-size: 0.75rem;
+  font-size: 0.625rem;
   font-weight: 500;
-}
-
-.graph-actions {
-  margin-left: auto;
-  display: flex;
-  gap: var(--spacing-sm);
 }
 
 #graph-container {
@@ -2806,6 +2957,26 @@ select {
 
 .graph-minimap.hidden {
   display: none;
+}
+
+.local-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--accent-success);
+  background: rgba(63, 185, 80, 0.1);
+  border-radius: 50%;
+  cursor: default;
+}
+
+.local-badge:hover {
+  background: rgba(63, 185, 80, 0.2);
 }
 
 /* Override navigator default styles */

@@ -61,6 +61,44 @@ let pathFromNode = null;
 let pathToNode = null;
 
 /**
+ * Show a styled confirm dialog (replaces native confirm())
+ * @param {string} title - Modal title
+ * @param {string} message - Message body
+ * @returns {Promise<boolean>} true if confirmed
+ */
+function showConfirm(title, message) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('modal-confirm');
+    const titleEl = document.getElementById('confirm-title');
+    const msgEl = document.getElementById('confirm-message');
+    const okBtn = document.getElementById('confirm-ok');
+    const cancelBtn = document.getElementById('confirm-cancel');
+    const backdrop = modal.querySelector('.modal-backdrop');
+    const closeBtn = modal.querySelector('.modal-close:not(#confirm-cancel)');
+
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+    modal.classList.add('open');
+
+    function close(result) {
+      modal.classList.remove('open');
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      backdrop.removeEventListener('click', onCancel);
+      closeBtn?.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    function onOk() { close(true); }
+    function onCancel() { close(false); }
+
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+    backdrop.addEventListener('click', onCancel);
+    closeBtn?.addEventListener('click', onCancel);
+  });
+}
+
+/**
  * Initialize the application
  */
 function init() {
@@ -147,6 +185,14 @@ function init() {
 
   // Initialize keyboard shortcuts
   initKeyboardShortcuts();
+
+  // Load example by default if no data exists
+  const hasExistingData = callsStore.getCallCount() > 1 ||
+    (callsStore.getCallCount() === 1 && callsStore.getActiveCall()?.json?.trim());
+  if (!hasExistingData) {
+    loadExample();
+    return;
+  }
 
   // Initial graph render
   rebuildGraph();
@@ -807,6 +853,19 @@ function initHeaderButtons() {
     mappingBtn.addEventListener('click', openMappingModal);
   }
 
+  // Actions dropdown
+  const actionsBtn = document.getElementById('btn-actions');
+  const actionsMenu = document.getElementById('actions-menu');
+  if (actionsBtn && actionsMenu) {
+    actionsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      actionsMenu.classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => {
+      actionsMenu.classList.add('hidden');
+    });
+  }
+
   // Example button
   const exampleBtn = document.getElementById('btn-load-example');
   if (exampleBtn) {
@@ -823,6 +882,12 @@ function initHeaderButtons() {
   const exportBtn = document.getElementById('btn-export');
   if (exportBtn) {
     exportBtn.addEventListener('click', handleExport);
+  }
+
+  // Export Model button
+  const exportModelBtn = document.getElementById('btn-export-model');
+  if (exportModelBtn) {
+    exportModelBtn.addEventListener('click', handleExportModel);
   }
 
   // Import button
@@ -887,10 +952,14 @@ function initGraphToolbar() {
   // Toggle minimap button
   const toggleMinimapBtn = document.getElementById('btn-toggle-minimap');
   const minimapEl = document.getElementById('graph-minimap');
+  const overlayToolbar = document.getElementById('graph-overlay-toolbar');
   if (toggleMinimapBtn && minimapEl) {
     toggleMinimapBtn.addEventListener('click', () => {
       minimapEl.classList.toggle('hidden');
       toggleMinimapBtn.classList.toggle('active');
+      if (overlayToolbar) {
+        overlayToolbar.style.top = minimapEl.classList.contains('hidden') ? '10px' : '140px';
+      }
     });
   }
 
@@ -937,15 +1006,14 @@ function initQueryBar() {
     // Show autocomplete
     updateAutocomplete(queryInput.value);
 
-    // Only apply query after longer delay and if it looks complete
-    // (contains an operator like =, >, <, etc.)
+    const value = queryInput.value.trim();
+    if (!value) {
+      applyQuery('');
+      return;
+    }
     debounceTimer = setTimeout(() => {
-      const value = queryInput.value.trim();
-      // Check if query looks complete (has an operator and a value)
-      if (value && /[=<>!]/.test(value) && !value.endsWith('.')) {
-        applyQuery(value);
-      }
-    }, 800);
+      applyQuery(queryInput.value.trim());
+    }, 400);
   });
 
   // Handle keyboard navigation
@@ -1002,10 +1070,19 @@ function initQueryBar() {
     });
   }
 
-  // Help button
+  // Help button - open modal
   if (helpBtn) {
     helpBtn.addEventListener('click', () => {
-      alert(getQueryHelp());
+      const modal = document.getElementById('modal-query-help');
+      const content = document.getElementById('query-help-content');
+      if (modal && content) {
+        content.innerHTML = `<pre class="code-block">${escapeHtml(getQueryHelp())}</pre>`;
+        modal.classList.add('open');
+        modal.querySelector('.modal-backdrop')?.addEventListener('click', () => modal.classList.remove('open'), { once: true });
+        modal.querySelectorAll('.modal-close').forEach(btn =>
+          btn.addEventListener('click', () => modal.classList.remove('open'), { once: true })
+        );
+      }
     });
   }
 
@@ -1277,12 +1354,12 @@ function handleMappingApply() {
 /**
  * Load example data - CRM with entity merging demonstration
  */
-function loadExample() {
+async function loadExample() {
   // Ask for confirmation if there's existing data
   const hasData = callsStore.getCallCount() > 1 ||
     (callsStore.getCallCount() === 1 && callsStore.getActiveCall()?.json?.trim());
 
-  if (hasData && !confirm('Load example? This will replace all current data.')) {
+  if (hasData && !(await showConfirm('Load Example', 'This will replace all current data. Continue?'))) {
     return;
   }
 
@@ -1314,7 +1391,6 @@ function loadExample() {
     { name: 'GET Dossier 2', dataKey: 'get_dossier_2', apiKey: 'get_dossier' },
     { name: 'LIST Factures', dataKey: 'list_factures', apiKey: 'list_factures' },
     { name: 'LIST Clients', dataKey: 'list_clients', apiKey: 'list_clients' },
-    { name: 'GET Client 1 (CRM)', dataKey: 'get_client_crm', apiKey: 'get_client_crm' },
   ];
 
   for (const callDef of callsToCreate) {
@@ -1338,8 +1414,8 @@ function loadExample() {
 /**
  * Handle clear all
  */
-function handleClearAll() {
-  if (!confirm('Clear all calls, mappings and data? This cannot be undone.')) {
+async function handleClearAll() {
+  if (!(await showConfirm('Clear All', 'Clear all calls, mappings and data? This cannot be undone.'))) {
     return;
   }
 
@@ -1360,6 +1436,28 @@ function handleClearAll() {
 /**
  * Handle export - exports calls and mapping configuration
  */
+function handleExportModel() {
+  const data = {
+    version: 1,
+    type: 'model',
+    mapping: mappingStore.exportData(),
+    extractions: callsStore.getAllCalls().map(call => ({
+      name: call.name,
+      extractions: call.extractions || [],
+    })),
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'jsonebula-model.json';
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
 function handleExport() {
   const data = {
     version: 1,
@@ -1400,12 +1498,22 @@ function processImportedFile(file) {
 
       // Handle both old format (direct calls) and new format (with version)
       if (data.version === 1) {
-        // New format with calls and mapping
+        // Full session export (calls + mapping)
         if (data.calls) {
           callsStore.importData(data.calls);
         }
         if (data.mapping) {
           mappingStore.importData(data.mapping);
+        }
+        // Model-only import: apply extractions to existing calls by name
+        if (data.type === 'model' && data.extractions) {
+          const existingCalls = callsStore.getAllCalls();
+          for (const ext of data.extractions) {
+            const match = existingCalls.find(c => c.name === ext.name);
+            if (match && ext.extractions?.length) {
+              callsStore.updateExtractions(match.id, ext.extractions);
+            }
+          }
         }
       } else if (data.calls && Array.isArray(data.calls)) {
         // Old format - just calls data

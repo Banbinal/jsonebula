@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Visual JSON explorer that transforms API responses into interactive knowledge graphs">
-  <meta name="author" content="json-nebula">
-  <meta property="og:title" content="json-nebula">
+  <meta name="author" content="jsonebula">
+  <meta property="og:title" content="jsonebula">
   <meta property="og:description" content="Visual JSON explorer that transforms API responses into interactive knowledge graphs">
   <meta property="og:type" content="website">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <title>json-nebula</title>
+  <title>jsonebula</title>
   <link rel="stylesheet" href="styles/main.css">
   <!-- Cytoscape.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
@@ -33,13 +33,13 @@
     <!-- Header -->
     <header class="header">
       <div class="header-left">
-        <h1 class="logo">json-nebula</h1>
-        <span class="version-badge">V5</span>
+        <h1 class="logo">jsonebula</h1>
       </div>
       <div class="header-center">
         <div class="query-bar">
+          <span class="bar-label">Search</span>
           <div class="query-input-wrapper">
-            <input type="text" id="query-input" placeholder='Search: client.status = "active"' autocomplete="off">
+            <input type="text" id="query-input" placeholder='client.status = "active"' autocomplete="off">
             <div class="query-autocomplete hidden" id="query-autocomplete">
               <!-- Autocomplete suggestions rendered here -->
             </div>
@@ -48,6 +48,7 @@
           <button class="btn btn-icon" id="btn-query-clear" title="Clear query">&times;</button>
         </div>
         <div class="quick-filters" id="quick-filters">
+          <span class="bar-label">Filters</span>
           <button class="btn btn-chip" data-filter="mapped" title="Show only mapped entities">Mapped</button>
           <button class="btn btn-chip" data-filter="orphans" title="Show disconnected nodes">Orphans</button>
           <button class="btn btn-chip" data-filter="hubs" title="Show highly connected nodes (>5)">Hubs</button>
@@ -55,13 +56,20 @@
         <div class="call-filters" id="call-filters"></div>
       </div>
       <div class="header-actions">
-        <button class="btn btn-secondary" id="btn-mapping">
+        <button class="btn btn-primary" id="btn-mapping">
           Mapping
           <span class="badge hidden" id="mapping-badge">0</span>
         </button>
-        <button class="btn btn-secondary" id="btn-load-example">Example</button>
-        <button class="btn btn-secondary" id="btn-import">Import</button>
-        <button class="btn btn-secondary" id="btn-export">Export</button>
+        <div class="actions-dropdown" id="actions-dropdown">
+          <button class="btn btn-secondary" id="btn-actions">Actions ▾</button>
+          <div class="actions-dropdown-menu hidden" id="actions-menu">
+            <button class="actions-dropdown-item" id="btn-load-example">Example</button>
+            <button class="actions-dropdown-item" id="btn-import">Import</button>
+            <button class="actions-dropdown-item" id="btn-export">Export all</button>
+            <button class="actions-dropdown-item" id="btn-export-model">Export model</button>
+          </div>
+        </div>
+        <button class="btn btn-icon btn-danger" id="btn-clear-all" title="Clear all data"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
         <input type="file" id="import-file-input" accept=".json" style="display: none;">
       </div>
     </header>
@@ -111,12 +119,23 @@
 
       <!-- Center: Graph -->
       <section class="graph-section">
-        <div class="graph-toolbar">
-          <div class="graph-filter">
-            <label class="checkbox-label">
-              <input type="checkbox" id="chk-hide-unmapped">
-              <span>Hide unmapped</span>
-            </label>
+        <div id="graph-container" class="graph-canvas">
+          <!-- Graph Stats (above legend) -->
+          <div class="graph-stats-overlay" id="graph-stats">
+            <span>0 nodes</span>
+            <span>0 edges</span>
+          </div>
+          <!-- Graph Overlay Toolbar (below minimap) -->
+          <div class="graph-overlay-toolbar" id="graph-overlay-toolbar">
+            <div class="overlay-toolbar-row">
+              <button class="btn btn-overlay" id="btn-layout" title="Reorganize layout">&#8693;</button>
+              <button class="btn btn-overlay" id="btn-fit" title="Fit to view">&#9635;</button>
+              <button class="btn btn-overlay" id="btn-toggle-minimap" title="Toggle minimap">&#9636;</button>
+            </div>
+            <div class="collapse-controls hidden" id="collapse-controls">
+              <span class="collapsed-count" id="collapsed-count">0 collapsed</span>
+              <button class="btn btn-overlay btn-overlay-small" id="btn-expand-all" title="Expand all collapsed nodes">&#8645;</button>
+            </div>
           </div>
           <!-- Focus Mode Controls -->
           <div class="focus-controls hidden" id="focus-controls">
@@ -134,22 +153,6 @@
             <button class="btn btn-small btn-find-path" id="btn-find-path" disabled>Find Path</button>
             <button class="btn btn-small btn-clear-path" id="btn-clear-path">Clear</button>
           </div>
-          <div class="graph-stats" id="graph-stats">
-            <span>0 nodes</span>
-            <span>0 edges</span>
-          </div>
-          <div class="collapse-controls hidden" id="collapse-controls">
-            <span class="collapsed-count" id="collapsed-count">0 collapsed</span>
-            <button class="btn btn-small" id="btn-expand-all" title="Expand all collapsed nodes">Expand All</button>
-          </div>
-          <div class="graph-actions">
-            <button class="btn btn-small" id="btn-layout" title="Reorganize layout">Layout</button>
-            <button class="btn btn-small" id="btn-fit" title="Fit to view">Fit</button>
-            <button class="btn btn-small" id="btn-toggle-minimap" title="Toggle minimap">Map</button>
-            <button class="btn btn-small" id="btn-clear-all">Clear All</button>
-          </div>
-        </div>
-        <div id="graph-container" class="graph-canvas">
           <!-- Empty state -->
           <div class="graph-empty" id="graph-empty">
             <div class="empty-content">
@@ -164,6 +167,10 @@
           </div>
           <!-- Minimap Navigator -->
           <div class="graph-minimap" id="graph-minimap"></div>
+          <!-- Local processing badge -->
+          <div class="local-badge" title="Your data is processed locally and never leaves your device">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
           <!-- Hidden Nodes Panel (inside graph container) -->
           <div class="hidden-nodes-panel hidden" id="hidden-nodes-panel">
             <div class="hidden-nodes-header">
@@ -271,11 +278,88 @@
       </div>
     </div>
 
+    <!-- Confirm Modal -->
+    <div class="modal" id="modal-confirm">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="confirm-title">Confirm</h3>
+          <button class="btn btn-icon modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="confirm-message"></p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary modal-close" id="confirm-cancel">Cancel</button>
+          <button class="btn btn-primary" id="confirm-ok">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Query Help Modal -->
+    <div class="modal" id="modal-query-help">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Query Syntax</h3>
+          <button class="btn btn-icon modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div id="query-help-content"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary modal-close">Close</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast Container -->
     <div id="toast-container"></div>
   </div>
 
+  <!-- Tooltip -->
+  <div class="tooltip" id="global-tooltip"></div>
+
   <!-- App Scripts -->
   <script type="module" src="src/app.js"></script>
+  <script>
+    (() => {
+      const tip = document.getElementById('global-tooltip');
+      let active = null, timer = null;
+
+      document.addEventListener('mouseover', (e) => {
+        const el = e.target.closest('[title]');
+        if (!el || !el.title) return;
+        el.dataset.tip = el.title;
+        el.removeAttribute('title');
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          tip.textContent = el.dataset.tip;
+          tip.classList.add('visible');
+          const r = el.getBoundingClientRect();
+          const tw = tip.offsetWidth;
+          const th = tip.offsetHeight;
+          let x = r.left + r.width / 2 - tw / 2;
+          let y = r.top - th - 6;
+          if (y < 4) y = r.bottom + 6;
+          if (x < 4) x = 4;
+          if (x + tw > window.innerWidth - 4) x = window.innerWidth - tw - 4;
+          tip.style.left = x + 'px';
+          tip.style.top = y + 'px';
+          active = el;
+        }, 200);
+      });
+
+      document.addEventListener('mouseout', (e) => {
+        const el = e.target.closest('[data-tip]');
+        if (!el) return;
+        clearTimeout(timer);
+        el.title = el.dataset.tip;
+        delete el.dataset.tip;
+        tip.classList.remove('visible');
+        active = null;
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -68,7 +68,7 @@ function render() {
     const statusClass = getStatusClass(call);
 
     return `
-      <div class="call-tab ${isActive ? 'active' : ''}" data-call-id="${call.id}">
+      <div class="call-tab ${isActive ? 'active' : ''}" data-call-id="${call.id}" title="${escapeHtml(call.name)}">
         <div class="call-tab-indicator ${statusClass}"></div>
         <span class="call-tab-name">${escapeHtml(call.name)}</span>
       </div>
