@@ -3022,8 +3022,8 @@ select {
   bottom: 10px;
   left: 10px;
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
+  flex-direction: column;
+  gap: 4px;
   padding: var(--spacing-sm);
   background-color: rgba(22, 27, 34, 0.9);
   border: 1px solid var(--border-primary);
@@ -3034,6 +3034,33 @@ select {
 
 .graph-legend:empty {
   display: none;
+}
+
+.legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.graph-legend.collapsed .legend-items {
+  flex-wrap: nowrap;
+  overflow: hidden;
+  max-height: 24px;
+}
+
+.legend-toggle {
+  align-self: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.5rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.legend-toggle:hover {
+  color: var(--text-primary);
 }
 
 .legend-item {

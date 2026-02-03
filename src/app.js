@@ -974,9 +974,10 @@ async function launchOnboarding() {
 function initGraphToolbar() {
   // Prevent graph overlay controls from propagating pointer events to Cytoscape
   document.querySelectorAll('.graph-overlay-toolbar, .focus-controls, .pathfinder-controls').forEach(el => {
-    for (const evt of ['mousedown', 'mousemove', 'mouseup', 'wheel', 'pointerdown', 'pointermove', 'pointerup', 'touchstart', 'touchmove']) {
-      el.addEventListener(evt, e => e.stopPropagation());
-    }
+    el.addEventListener('mousedown', e => e.stopPropagation());
+    el.addEventListener('wheel', e => e.stopPropagation());
+    el.addEventListener('touchstart', e => e.stopPropagation());
+    el.addEventListener('touchmove', e => e.stopPropagation());
   });
   // Layout button
   const layoutBtn = document.getElementById('btn-layout');
@@ -1788,12 +1789,21 @@ function updateLegend() {
     return;
   }
 
-  legendEl.innerHTML = entities.map(entity => `
-    <div class="legend-item" data-entity-type="${entity.id}" title="Click to filter by ${entity.label}">
-      <span class="legend-color" style="background-color: ${entity.color}"></span>
-      <span class="legend-label">${escapeHtml(entity.label)}</span>
+  const isCollapsed = legendEl.classList.contains('collapsed');
+
+  legendEl.innerHTML = `
+    <div class="legend-items">
+      ${entities.map(entity => `
+        <div class="legend-item" data-entity-type="${entity.id}" title="Click to filter by ${entity.label}">
+          <span class="legend-color" style="background-color: ${entity.color}"></span>
+          <span class="legend-label">${escapeHtml(entity.label)}</span>
+        </div>
+      `).join('')}
     </div>
-  `).join('');
+    <button class="legend-toggle" title="${isCollapsed ? 'Expand' : 'Collapse'}">
+      ${isCollapsed ? '&#9650;' : '&#9660;'}
+    </button>
+  `;
 
   // Add click handlers for filtering
   legendEl.querySelectorAll('.legend-item').forEach(item => {
@@ -1801,6 +1811,13 @@ function updateLegend() {
       const entityType = item.dataset.entityType;
       handleLegendClick(entityType, item);
     });
+  });
+
+  // Toggle collapse
+  legendEl.querySelector('.legend-toggle')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    legendEl.classList.toggle('collapsed');
+    updateLegend();
   });
 }
 
@@ -2058,6 +2075,10 @@ function updatePathFinderUI() {
   if (findBtn) {
     findBtn.disabled = !(pathFromNode && pathToNode);
   }
+  const focusBtn = document.getElementById('btn-focus-path');
+  if (focusBtn) {
+    focusBtn.disabled = !(pathFromNode && pathToNode);
+  }
 }
 
 /**
@@ -2074,23 +2095,71 @@ function findPath() {
   if (source.length === 0 || target.length === 0) return;
 
   // Clear previous highlights
-  cy.elements().removeClass('path-highlighted path-endpoint');
+  cy.elements().removeClass('path-highlighted path-endpoint highlighted dimmed');
 
-  // Use dijkstra to find shortest path
-  const dijkstra = cy.elements().dijkstra(source, () => 1);
+  // Use dijkstra to find shortest path (exclude compound nodes)
+  const eles = cy.elements().not('[isCompound = "true"]');
+  const dijkstra = eles.dijkstra(source, () => 1);
   const path = dijkstra.pathTo(target);
 
   if (path.length > 0) {
     // Highlight the path
-    path.addClass('path-highlighted');
+    path.addClass('path-highlighted highlighted');
     source.addClass('path-endpoint');
     target.addClass('path-endpoint');
+
+    // Dim non-path nodes
+    cy.nodes().not(path).not('[isCompound = "true"]').addClass('dimmed');
+    cy.edges().not(path).addClass('dimmed');
 
     // Fit view to path
     cy.animate({
       fit: { eles: path, padding: 50 },
       duration: 300,
     });
+  }
+}
+
+/**
+ * Focus on path - hide all nodes not on the path
+ */
+function focusPath() {
+  if (!pathFromNode || !pathToNode || !renderer) return;
+  const cy = renderer.getCy();
+  if (!cy) return;
+
+  const source = cy.$(`#${CSS.escape(pathFromNode)}`);
+  const target = cy.$(`#${CSS.escape(pathToNode)}`);
+  if (source.length === 0 || target.length === 0) return;
+
+  // Clear previous state
+  cy.elements().removeClass('path-highlighted path-endpoint highlighted dimmed');
+  cy.nodes().show();
+  cy.edges().show();
+
+  // Find path
+  const eles = cy.elements().not('[isCompound = "true"]');
+  const dijkstra = eles.dijkstra(source, () => 1);
+  const path = dijkstra.pathTo(target);
+
+  if (path.length > 0) {
+    path.addClass('path-highlighted');
+    source.addClass('path-endpoint');
+    target.addClass('path-endpoint');
+
+    // Hide non-path nodes and edges (keep compound parents visible)
+    cy.nodes().not(path).not('[isCompound = "true"]').hide();
+    cy.edges().not(path).hide();
+
+    // Arrange path nodes top-down
+    const pathNodes = path.nodes();
+    const spacing = 150;
+    pathNodes.forEach((node, i) => {
+      node.position({ x: 0, y: i * spacing });
+    });
+
+    // Fit view to path
+    cy.fit(path, 80);
   }
 }
 
@@ -2112,11 +2181,14 @@ function clearPathFinder() {
     toEl.classList.remove('selected');
   }
 
-  // Clear highlights
+  // Clear highlights, dimming, show all, and re-layout
   if (renderer) {
     const cy = renderer.getCy();
     if (cy) {
-      cy.elements().removeClass('path-highlighted path-endpoint');
+      cy.elements().removeClass('path-highlighted path-endpoint highlighted dimmed');
+      cy.nodes().show();
+      cy.edges().show();
+      renderer.runLayoutDagre();
     }
   }
 
@@ -2128,10 +2200,14 @@ function clearPathFinder() {
  */
 function initPathFinder() {
   const findBtn = document.getElementById('btn-find-path');
+  const focusBtn = document.getElementById('btn-focus-path');
   const clearBtn = document.getElementById('btn-clear-path');
 
   if (findBtn) {
     findBtn.addEventListener('click', findPath);
+  }
+  if (focusBtn) {
+    focusBtn.addEventListener('click', focusPath);
   }
   if (clearBtn) {
     clearBtn.addEventListener('click', clearPathFinder);
