@@ -8,6 +8,8 @@
  * Relations define parent-child links between entities.
  */
 
+import { callsStore } from '../calls/store.js';
+
 const STORAGE_KEY = 'json-nebula-mapping';
 
 // Default color palette
@@ -237,6 +239,17 @@ function createMappingStore() {
         to: rel.to === oldId ? newId : rel.to,
       }));
 
+      // Update extractions in callsStore
+      for (const call of callsStore.getAllCalls()) {
+        if (!call.extractions) continue;
+        const updated = call.extractions.map(ext =>
+          ext.entity === oldId ? { ...ext, entity: newId } : ext
+        );
+        if (updated.some((ext, i) => ext !== call.extractions[i])) {
+          callsStore.updateExtractions(call.id, updated);
+        }
+      }
+
       persist();
       notifyListeners();
     },
@@ -252,6 +265,15 @@ function createMappingStore() {
 
       // Remove relations involving this entity
       relations = relations.filter(rel => rel.from !== id && rel.to !== id);
+
+      // Clean up extractions in callsStore
+      for (const call of callsStore.getAllCalls()) {
+        if (!call.extractions) continue;
+        const filtered = call.extractions.filter(ext => ext.entity !== id);
+        if (filtered.length !== call.extractions.length) {
+          callsStore.updateExtractions(call.id, filtered);
+        }
+      }
 
       persist();
       notifyListeners();

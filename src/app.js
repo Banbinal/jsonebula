@@ -288,6 +288,25 @@ function getNestedValue(obj, path) {
 }
 
 /**
+ * Resolve PK value from an object, supporting composite keys with "+" separator.
+ * e.g., resolvePkValue(obj, "type+date") returns "order|2024-01-15"
+ */
+function resolvePkValue(obj, pkField) {
+  if (!obj || !pkField) return undefined;
+
+  if (!pkField.includes('+')) {
+    return getNestedValue(obj, pkField);
+  }
+
+  const parts = pkField.split('+');
+  const values = parts.map(p => getNestedValue(obj, p.trim()));
+
+  if (values.some(v => v === undefined || v === null)) return undefined;
+
+  return values.join('|');
+}
+
+/**
  * Deep merge objects with conflict detection and source tracking
  * @param {Object} target - Target object to merge into
  * @param {Object} source - Source object to merge from
@@ -398,9 +417,9 @@ function computeNodeMappings(calls, nodes) {
           continue;
         }
 
-        // Get PK value for grouping
+        // Get PK value for grouping (supports composite keys with "+")
         const pkField = entityConfig.pk || 'id';
-        const pkValue = getNestedValue(result.value, pkField);
+        const pkValue = resolvePkValue(result.value, pkField);
 
         if (pkValue !== undefined && pkValue !== null) {
           // Group by entityType + pkValue
@@ -452,7 +471,7 @@ function computeNodeMappings(calls, nodes) {
       const call = calls.find(c => c.id === callId);
       const callName = call?.name || callId;
 
-      sources.push({ callId, callName, nodeId: item.nodeId });
+      sources.push({ callId, callName, nodeId: item.nodeId, data: item.data });
 
       // Deep merge with tracking
       const sourceInfo = { callId, callName, sourceIndex: i };
@@ -531,7 +550,7 @@ function computeRelationEdges(mappings) {
         if (relation.toFk && toNode.data) {
           const fkValue = toNode.data[relation.toFk];
           const fromPk = relation.fromPk || mappingStore.getEntity(relation.from)?.pk || 'id';
-          const fromPkValue = fromNode.data?.[fromPk];
+          const fromPkValue = resolvePkValue(fromNode.data, fromPk);
 
           if (fkValue !== undefined && fkValue === fromPkValue) {
             const edgeId = `rel-fk-${fromNode.nodeId}-${toNode.nodeId}`;

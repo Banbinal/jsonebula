@@ -46,9 +46,20 @@ export function findExtractablePaths(json, basePath = '$', depth = 0) {
         hasId: 'id' in json[0] || Object.keys(json[0]).some(k => k.endsWith('_id') || k.endsWith('Id')),
       });
 
-      // Recurse into first item to find nested extractables
-      const nested = findExtractablePaths(json[0], basePath + '[*]', depth + 1);
-      paths.push(...nested);
+      // Recurse into sampled items to discover nested extractables
+      // (handles heterogeneous arrays where only some items have nested structures)
+      const sampleSize = Math.min(json.length, 20);
+      const seenPaths = new Set(paths.map(p => p.path));
+      for (let i = 0; i < sampleSize; i++) {
+        if (typeof json[i] !== 'object' || json[i] === null) continue;
+        const nested = findExtractablePaths(json[i], basePath + '[*]', depth + 1);
+        for (const p of nested) {
+          if (!seenPaths.has(p.path)) {
+            seenPaths.add(p.path);
+            paths.push(p);
+          }
+        }
+      }
     }
     return paths;
   }

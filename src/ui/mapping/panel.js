@@ -125,7 +125,22 @@ function renderEntities() {
 
   const calls = callsStore.getAllCalls();
 
-  container.innerHTML = entities.map(entity => {
+  // Search bar (preserve current query if re-rendering)
+  const prevSearch = container.querySelector('.entity-search-input');
+  const searchQuery = prevSearch ? prevSearch.value : '';
+
+  const filteredEntities = searchQuery
+    ? entities.filter(e =>
+        e.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        e.label.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : entities;
+
+  container.innerHTML = `
+    <div class="entity-search">
+      <input type="text" class="entity-search-input" placeholder="Search entities..." value="${escapeHtml(searchQuery)}">
+    </div>
+  ` + filteredEntities.map(entity => {
     const fields = getEntityFields(entity.id);
     const hasFields = fields.length > 0;
     const sources = getEntitySources(entity.id);
@@ -144,13 +159,13 @@ function renderEntities() {
         </div>
         <div class="entity-field">
           <label>PK Field</label>
+          <input type="text" value="${escapeHtml(entity.pk)}" data-field="pk" placeholder="id or field1+field2"
+            ${hasFields ? `list="pk-fields-${escapeHtml(entity.id)}"` : ''}>
           ${hasFields ? `
-            <select data-field="pk">
-              ${fields.map(f => `<option value="${escapeHtml(f)}" ${f === entity.pk ? 'selected' : ''}>${escapeHtml(f)}</option>`).join('')}
-            </select>
-          ` : `
-            <input type="text" value="${escapeHtml(entity.pk)}" data-field="pk" placeholder="e.g., id">
-          `}
+            <datalist id="pk-fields-${escapeHtml(entity.id)}">
+              ${fields.map(f => `<option value="${escapeHtml(f)}">`).join('')}
+            </datalist>
+          ` : ''}
         </div>
         <div class="entity-field">
           <label>Display Field</label>
@@ -185,6 +200,15 @@ function renderEntities() {
     </div>
   `;
   }).join('');
+
+  // Search input handler
+  const searchInput = container.querySelector('.entity-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', () => renderEntities());
+    // Restore focus and cursor position after re-render
+    searchInput.focus();
+    searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+  }
 
   // Add event listeners
   container.querySelectorAll('.entity-card').forEach(card => {

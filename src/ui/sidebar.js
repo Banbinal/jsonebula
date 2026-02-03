@@ -322,6 +322,12 @@ export function showMappedNodeDetails(nodeData, entityConfig, parents = [], chil
   const nodeSources = nodeData.sources || [];
   const propertySources = nodeData.propertySources || {};
 
+  // Build unique source labels (handles multiple sources from same call)
+  const sourceLabels = nodeSources.map(s => {
+    const srcPath = s.nodeId ? s.nodeId.split(':').slice(1).join(':') : '';
+    return `${s.callName} — ${srcPath}`;
+  });
+
   // Get available fields from entityData
   const availableFields = entityData ? Object.keys(entityData).filter(k => {
     const v = entityData[k];
@@ -339,6 +345,54 @@ export function showMappedNodeDetails(nodeData, entityConfig, parents = [], chil
     <div class="node-detail-title">${escapeHtml(String(label))}</div>
   `;
 
+  // --- Entity section ---
+  html += `<div class="sidebar-section-divider"><span>Entity</span></div>`;
+
+  // Entity configuration section
+  html += `
+    <div class="node-detail-section">
+      <h4>Entity Configuration</h4>
+      <div class="sidebar-entity-config">
+        <div class="config-row">
+          <label>Label</label>
+          <input type="text" id="sidebar-entity-label" value="${escapeHtml(entityLabel)}" placeholder="Display name">
+        </div>
+        <div class="config-row">
+          <label>PK</label>
+          <span class="config-value">${escapeHtml(entityConfig?.pk || 'id')}</span>
+        </div>
+        <div class="config-row">
+          <label>Display Field</label>
+          <select id="sidebar-display-field-select" class="entity-select">
+            ${availableFields.map(field => `
+              <option value="${escapeHtml(field)}" ${currentDisplayField === field ? 'selected' : ''}>
+                ${escapeHtml(field)}
+              </option>
+            `).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Extraction sources section (read-only)
+  html += `
+    <div class="node-detail-section">
+      <h4>Extraction Sources (${extractionSources.length})</h4>
+      <div class="sidebar-sources-list">
+        ${extractionSources.map(src => `
+          <div class="sidebar-source-row">
+            <span class="source-call">${escapeHtml(src.callName)}</span>
+            <span class="source-path">${escapeHtml(src.path)}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  // --- Node section ---
+  html += `<div class="sidebar-section-divider"><span>Node</span></div>`;
+
   // Sources legend (if multiple sources)
   if (nodeSources.length > 1) {
     html += `
@@ -348,7 +402,7 @@ export function showMappedNodeDetails(nodeData, entityConfig, parents = [], chil
           ${nodeSources.map((src, idx) => `
             <div class="source-legend-item">
               <span class="source-color-dot" style="background-color: ${SOURCE_COLORS[idx % SOURCE_COLORS.length]}"></span>
-              <span class="source-legend-name">${escapeHtml(src.callName)}</span>
+              <span class="source-legend-name">${escapeHtml(sourceLabels[idx])}</span>
             </div>
           `).join('')}
         </div>
@@ -417,123 +471,101 @@ export function showMappedNodeDetails(nodeData, entityConfig, parents = [], chil
     return result;
   }
 
-  // Organize properties by source: common vs source-specific
-  const commonProps = {};
-  const sourceSpecificProps = {}; // sourceName -> { key: value }
-  const COMMON_COLOR = '#8b949e';
-
-  // Flatten entityData to handle nested properties with paths like "address.city"
-  const flattenedData = flattenObject(entityData);
-
-  for (const [path, value] of Object.entries(flattenedData)) {
-    // Skip arrays
-    if (Array.isArray(value)) continue;
-
-    const propSources = propertySources[path] || [];
-
-    if (propSources.length > 1) {
-      // Property exists in multiple sources -> common
-      commonProps[path] = value;
-    } else if (propSources.length === 1) {
-      // Property exists in only one source -> source-specific
-      const sourceName = propSources[0].callName;
-      if (!sourceSpecificProps[sourceName]) {
-        sourceSpecificProps[sourceName] = {};
-      }
-      sourceSpecificProps[sourceName][path] = value;
-    } else {
-      // No source tracked (shouldn't happen, but fallback to common)
-      commonProps[path] = value;
-    }
+  // Helper to get a short summary of an object (first few primitive fields)
+  function getItemSummary(item) {
+    if (!item || typeof item !== 'object') return formatValue(item);
+    const fields = Object.entries(item).filter(([, v]) => v !== null && typeof v !== 'object');
+    return fields.slice(0, 3).map(([k, v]) => `<span class="raw-property-key">${escapeHtml(k)}:</span> ${formatValue(v)}`).join(', ');
   }
 
-  // Properties section with source grouping
-  html += `
-    <div class="node-detail-section">
-      <h4>Properties</h4>
-      <div class="merged-properties">
-  `;
-
-  // Common properties
-  if (Object.keys(commonProps).length > 0) {
-    html += `<div class="property-group-header" style="color: ${COMMON_COLOR}">common</div>`;
-    for (const [key, value] of Object.entries(commonProps)) {
-      html += `
-        <div class="merged-property">
-          <span class="property-key" style="color: ${COMMON_COLOR}">${escapeHtml(key)}:</span>
-          <span class="property-value">${formatValue(value)}</span>
+  // Detect if entityData is an array (list-type entity)
+  if (Array.isArray(entityData)) {
+    html += `
+      <div class="node-detail-section">
+        <h4>Items (${entityData.length})</h4>
+        <div class="array-items-list">
+          ${entityData.map((item, idx) => `
+            <div class="array-item-card">
+              <div class="array-item-index">${idx}</div>
+              <div class="array-item-summary">${getItemSummary(item)}</div>
+            </div>
+          `).join('')}
         </div>
-      `;
-    }
-  }
+      </div>
+    `;
+  } else {
+    // Organize properties by source: common vs source-specific
+    const commonProps = {};
+    const sourceSpecificProps = {}; // sourceName -> { key: value }
+    const COMMON_COLOR = '#8b949e';
 
-  // Source-specific properties
-  nodeSources.forEach((src, idx) => {
-    const srcProps = sourceSpecificProps[src.callName];
-    if (srcProps && Object.keys(srcProps).length > 0) {
-      const srcColor = SOURCE_COLORS[idx % SOURCE_COLORS.length];
-      html += `<div class="property-group-header" style="color: ${srcColor}">${escapeHtml(src.callName)}</div>`;
-      for (const [key, value] of Object.entries(srcProps)) {
+    // Flatten entityData to handle nested properties with paths like "address.city"
+    const flattenedData = flattenObject(entityData);
+
+    for (const [path, value] of Object.entries(flattenedData)) {
+      // Skip arrays
+      if (Array.isArray(value)) continue;
+
+      const propSources = propertySources[path] || [];
+
+      if (propSources.length > 1) {
+        commonProps[path] = value;
+      } else if (propSources.length === 1) {
+        const sourceKey = sourceLabels[propSources[0].sourceIndex] || propSources[0].callName;
+        if (!sourceSpecificProps[sourceKey]) {
+          sourceSpecificProps[sourceKey] = {};
+        }
+        sourceSpecificProps[sourceKey][path] = value;
+      } else {
+        commonProps[path] = value;
+      }
+    }
+
+    // Properties section with source grouping
+    html += `
+      <div class="node-detail-section">
+        <h4>Properties</h4>
+        <div class="merged-properties">
+    `;
+
+    // Common properties (only show "common" header when there are multiple sources)
+    if (Object.keys(commonProps).length > 0) {
+      if (nodeSources.length > 1) {
+        html += `<div class="property-group-header" style="color: ${COMMON_COLOR}">common</div>`;
+      }
+      for (const [key, value] of Object.entries(commonProps)) {
+        const hasConflict = key in conflicts;
         html += `
           <div class="merged-property">
-            <span class="property-key" style="color: ${srcColor}">${escapeHtml(key)}:</span>
+            <span class="property-key"${nodeSources.length > 1 ? ` style="color: ${COMMON_COLOR}"` : ''}>${hasConflict ? '<span class="conflict-dot" title="Conflicting values across sources">⚠</span> ' : ''}${escapeHtml(key)}:</span>
             <span class="property-value">${formatValue(value)}</span>
           </div>
         `;
       }
     }
-  });
 
-  html += `
-      </div>
-    </div>
-  `;
+    // Source-specific properties
+    nodeSources.forEach((src, idx) => {
+      const srcProps = sourceSpecificProps[sourceLabels[idx]];
+      if (srcProps && Object.keys(srcProps).length > 0) {
+        const srcColor = SOURCE_COLORS[idx % SOURCE_COLORS.length];
+        html += `<div class="property-group-header" style="color: ${srcColor}">${escapeHtml(sourceLabels[idx])}</div>`;
+        for (const [key, value] of Object.entries(srcProps)) {
+          html += `
+            <div class="merged-property">
+              <span class="property-key" style="color: ${srcColor}">${escapeHtml(key)}:</span>
+              <span class="property-value">${formatValue(value)}</span>
+            </div>
+          `;
+        }
+      }
+    });
 
-  // Entity configuration section
-  html += `
-    <div class="node-detail-section">
-      <h4>Entity Configuration</h4>
-      <div class="sidebar-entity-config">
-        <div class="config-row">
-          <label>Label</label>
-          <input type="text" id="sidebar-entity-label" value="${escapeHtml(entityLabel)}" placeholder="Display name">
-        </div>
-        <div class="config-row">
-          <label>Display Field</label>
-          <select id="sidebar-display-field-select" class="entity-select">
-            ${availableFields.map(field => `
-              <option value="${escapeHtml(field)}" ${currentDisplayField === field ? 'selected' : ''}>
-                ${escapeHtml(field)}
-              </option>
-            `).join('')}
-          </select>
+    html += `
         </div>
       </div>
-    </div>
-  `;
-
-  // Extraction sources section (for managing sources at entity type level)
-  html += `
-    <div class="node-detail-section">
-      <h4>Extraction Sources (${extractionSources.length})</h4>
-      <div class="sidebar-sources-list">
-        ${extractionSources.map(src => `
-          <div class="sidebar-source-row" data-call-id="${src.callId}" data-index="${src.index}">
-            <span class="source-call">${escapeHtml(src.callName)}</span>
-            <span class="source-path">${escapeHtml(src.path)}</span>
-            <button class="btn-remove-source" title="Remove">&times;</button>
-          </div>
-        `).join('')}
-      </div>
-      <div class="sidebar-add-source">
-        <select id="sidebar-add-source-call">
-          ${calls.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')}
-        </select>
-        <input type="text" id="sidebar-add-source-path" placeholder="$.path[*]" value="$">
-        <button class="btn btn-small" id="sidebar-btn-add-source">+</button>
-      </div>
-    </div>
-  `;
+    `;
+  }
 
   // Parents section
   if (parents.length > 0) {
@@ -563,40 +595,20 @@ export function showMappedNodeDetails(nodeData, entityConfig, parents = [], chil
     `;
   }
 
-  // Build structured data by source
-  const structuredData = {};
+  // Data section - show per-source grouped JSON when merged, raw otherwise
+  const isMerged = nodeSources.length > 1 && nodeSources.some(s => s.data);
+  const dataJson = isMerged
+    ? Object.fromEntries(nodeSources.filter(s => s.data).map(s => {
+        const srcPath = s.nodeId ? s.nodeId.split(':').slice(1).join(':') : '';
+        return [`${s.callName} — ${srcPath}`, s.data];
+      }))
+    : entityData;
 
-  // Add common properties
-  if (Object.keys(commonProps).length > 0) {
-    structuredData.common = commonProps;
-  }
-
-  // Add source-specific properties
-  nodeSources.forEach((src) => {
-    const srcProps = sourceSpecificProps[src.callName];
-    if (srcProps && Object.keys(srcProps).length > 0) {
-      structuredData[src.callName] = srcProps;
-    }
-  });
-
-  // Add conflicts summary if any
-  if (conflictKeys.length > 0) {
-    structuredData._conflicts = {};
-    for (const key of conflictKeys) {
-      const propSources = propertySources[key] || [];
-      structuredData._conflicts[key] = propSources.map(s => ({
-        source: s.callName,
-        value: s.value,
-      }));
-    }
-  }
-
-  // Data section with structured JSON
   html += `
     <div class="node-detail-section">
       <h4>Data</h4>
       <div class="node-detail-json">
-        <pre class="code-block">${escapeHtml(JSON.stringify(structuredData, null, 2))}</pre>
+        <pre class="code-block">${escapeHtml(JSON.stringify(dataJson, null, 2))}</pre>
       </div>
       <button class="btn btn-small" id="btn-copy-entity-json">Copy JSON</button>
     </div>
@@ -620,43 +632,6 @@ export function showMappedNodeDetails(nodeData, entityConfig, parents = [], chil
     });
   }
 
-  // Remove source handlers
-  detailsEl.querySelectorAll('.btn-remove-source').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const row = btn.closest('.sidebar-source-row');
-      const srcCallId = row.dataset.callId;
-      const index = parseInt(row.dataset.index, 10);
-
-      const call = callsStore.getCall(srcCallId);
-      if (call) {
-        const extractions = [...(call.extractions || [])];
-        extractions.splice(index, 1);
-        callsStore.updateExtractions(srcCallId, extractions);
-      }
-    });
-  });
-
-  // Add source handler
-  const addSourceBtn = document.getElementById('sidebar-btn-add-source');
-  if (addSourceBtn && entityType) {
-    addSourceBtn.addEventListener('click', () => {
-      const callSelect = document.getElementById('sidebar-add-source-call');
-      const pathInput = document.getElementById('sidebar-add-source-path');
-      const srcCallId = callSelect.value;
-      const srcPath = pathInput.value.trim();
-
-      if (srcCallId && srcPath) {
-        const call = callsStore.getCall(srcCallId);
-        if (call) {
-          const extractions = [...(call.extractions || [])];
-          extractions.push({ entity: entityType, path: srcPath });
-          callsStore.updateExtractions(srcCallId, extractions);
-          pathInput.value = '$';
-        }
-      }
-    });
-  }
-
   // Add click handlers for relation links
   detailsEl.querySelectorAll('.relation-link').forEach(link => {
     link.addEventListener('click', () => {
@@ -670,7 +645,7 @@ export function showMappedNodeDetails(nodeData, entityConfig, parents = [], chil
   // Copy handler
   const copyBtn = document.getElementById('btn-copy-entity-json');
   if (copyBtn) {
-    copyBtn.addEventListener('click', () => copyToClipboard(JSON.stringify(structuredData, null, 2), copyBtn));
+    copyBtn.addEventListener('click', () => copyToClipboard(JSON.stringify(dataJson, null, 2), copyBtn));
   }
 
   showSidebar();
