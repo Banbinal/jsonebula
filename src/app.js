@@ -33,6 +33,9 @@ import {
 // Example data
 import { petstoreConfig, petstoreData } from './examples/petstore.js';
 
+// Onboarding
+import { hasCompletedOnboarding, startOnboarding } from './ui/onboarding.js';
+
 let renderer = null;
 let graphEmptyEl = null;
 let graphStatsEl = null;
@@ -191,6 +194,10 @@ function init() {
     (callsStore.getCallCount() === 1 && callsStore.getActiveCall()?.json?.trim());
   if (!hasExistingData) {
     loadExample();
+    // Auto-trigger onboarding on first visit
+    if (!hasCompletedOnboarding()) {
+      setTimeout(() => startOnboarding(), 500);
+    }
     return;
   }
 
@@ -908,12 +915,69 @@ function initHeaderButtons() {
       }
     });
   }
+
+  // Onboarding button
+  const onboardingBtn = document.getElementById('btn-onboarding');
+  if (onboardingBtn) {
+    onboardingBtn.addEventListener('click', launchOnboarding);
+  }
+}
+
+async function launchOnboarding() {
+  // Load example data first (ask if there's existing data)
+  const hasData = callsStore.getCallCount() > 1 ||
+    (callsStore.getCallCount() === 1 && callsStore.getActiveCall()?.json?.trim());
+
+  if (hasData && !(await showConfirm('Guided Tour', 'The tour will load example data. This will replace your current data. Continue?'))) {
+    return;
+  }
+
+  // Load example without confirm (we already asked)
+  callsStore.clearAll();
+  mappingStore.clearAll();
+  collapsedNodes.clear();
+
+  for (const [entityId, entityConfig] of Object.entries(petstoreConfig.entities)) {
+    mappingStore.setEntity(entityId, { label: entityConfig.label, pk: entityConfig.pk, displayField: entityConfig.displayField, color: entityConfig.color });
+  }
+  for (const relation of petstoreConfig.relations) {
+    mappingStore.addRelation(relation.from, relation.to, relation.toFk);
+  }
+
+  const callsToCreate = [
+    { name: 'GET Client 1', dataKey: 'get_client_details', apiKey: 'get_client_details' },
+    { name: 'GET Client 2', dataKey: 'get_client_details_2', apiKey: 'get_client_details' },
+    { name: 'GET Dossier 1', dataKey: 'get_dossier', apiKey: 'get_dossier' },
+    { name: 'GET Dossier 2', dataKey: 'get_dossier_2', apiKey: 'get_dossier' },
+    { name: 'LIST Factures', dataKey: 'list_factures', apiKey: 'list_factures' },
+    { name: 'LIST Clients', dataKey: 'list_clients', apiKey: 'list_clients' },
+  ];
+
+  for (const callDef of callsToCreate) {
+    const data = petstoreData[callDef.dataKey];
+    if (!data) continue;
+    const callId = callsStore.createCall(callDef.name);
+    callsStore.updateJson(callId, JSON.stringify(data, null, 2));
+    const apiConfig = petstoreConfig.apiCalls[callDef.apiKey];
+    if (apiConfig?.extractions) callsStore.updateExtractions(callId, apiConfig.extractions);
+  }
+
+  rebuildGraph();
+
+  // Start tour after a short delay for render
+  setTimeout(() => startOnboarding(), 300);
 }
 
 /**
  * Initialize graph toolbar
  */
 function initGraphToolbar() {
+  // Prevent graph overlay controls from propagating pointer events to Cytoscape
+  document.querySelectorAll('.graph-overlay-toolbar, .focus-controls, .pathfinder-controls').forEach(el => {
+    for (const evt of ['mousedown', 'mousemove', 'mouseup', 'wheel', 'pointerdown', 'pointermove', 'pointerup', 'touchstart', 'touchmove']) {
+      el.addEventListener(evt, e => e.stopPropagation());
+    }
+  });
   // Layout button
   const layoutBtn = document.getElementById('btn-layout');
   if (layoutBtn) {

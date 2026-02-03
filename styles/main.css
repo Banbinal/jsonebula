@@ -207,6 +207,12 @@ body {
   background: var(--bg-hover);
 }
 
+.actions-dropdown-divider {
+  height: 1px;
+  background: var(--border-primary);
+  margin: 4px 0;
+}
+
 /* ==========================================================================
    Buttons
    ========================================================================== */
@@ -3190,6 +3196,111 @@ select {
   height: 1px;
   background-color: var(--border-primary);
   margin: var(--spacing-xs) 0;
+}
+
+/* ==========================================================================
+   Onboarding
+   ========================================================================== */
+
+.onboarding-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  background: rgba(0, 0, 0, 0.65);
+  transition: clip-path 0.3s ease;
+}
+
+.onboarding-card {
+  position: fixed;
+  z-index: 5001;
+  width: 300px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  animation: onboarding-fade-in 0.2s ease;
+}
+
+@keyframes onboarding-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.onboarding-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.onboarding-step-count {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.onboarding-skip {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.onboarding-skip:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.onboarding-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.onboarding-text {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--spacing-md);
+}
+
+.onboarding-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.onboarding-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.onboarding-btn-next {
+  background: var(--accent-primary);
+  color: var(--bg-primary);
+}
+
+.onboarding-btn-next:hover {
+  background: #79b8ff;
+}
+
+.onboarding-btn-back {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.onboarding-btn-back:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 /* Graph node states - faded (for focus mode) */
