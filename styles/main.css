@@ -2808,6 +2808,34 @@ select {
   border-bottom: 1px solid var(--border-primary);
 }
 
+.extraction-cta {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.extraction-cta p {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.extraction-cta .hint {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-bottom: 0;
+}
+
+.btn-extract-all-cta {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
 .extractions-current h5,
 .extractions-picker h5 {
   font-size: 0.75rem;

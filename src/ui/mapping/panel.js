@@ -400,6 +400,17 @@ function renderExtractions() {
   // Show current extractions
   let html = '';
 
+  // Prominent CTA when no entities exist yet
+  if (entities.length === 0) {
+    html += `
+      <div class="extraction-cta">
+        <p>No entities yet — extract paths from your data to create them.</p>
+        <button class="btn btn-primary btn-extract-all-cta" id="btn-extract-all-cta">Extract All Paths</button>
+        <p class="hint">Or click individual paths below to extract them one by one.</p>
+      </div>
+    `;
+  }
+
   if (extractions.length > 0) {
     html += `
       <div class="extractions-current">
@@ -521,6 +532,18 @@ function renderExtractions() {
       }
 
       render();
+    });
+  }
+
+  // CTA Extract All button (shown when no entities exist)
+  const ctaBtn = document.getElementById('btn-extract-all-cta');
+  if (ctaBtn) {
+    ctaBtn.addEventListener('click', () => {
+      // Delegate to the same extract-all logic
+      const extractAllBtn = document.getElementById('btn-extract-all');
+      if (extractAllBtn) {
+        extractAllBtn.click();
+      }
     });
   }
 
@@ -654,6 +677,19 @@ function handleApply() {
  */
 export function openMappingPanel() {
   if (modalEl) {
+    // If no entities exist yet, land on extractions tab
+    const entities = mappingStore.getAllEntities();
+    if (entities.length === 0) {
+      activeTab = 'extractions';
+      modalEl.querySelectorAll('.mapping-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === 'extractions');
+      });
+      modalEl.querySelectorAll('.mapping-panel').forEach(panel => {
+        const panelTab = panel.id.replace('panel-', '');
+        panel.classList.toggle('active', panelTab === 'extractions');
+      });
+    }
+
     modalEl.classList.add('open');
     render();
   }
