@@ -328,11 +328,27 @@ export function showMappedNodeDetails(nodeData, entityConfig, parents = [], chil
     return `${s.callName} — ${srcPath}`;
   });
 
-  // Get available fields from entityData
-  const availableFields = entityData ? Object.keys(entityData).filter(k => {
-    const v = entityData[k];
-    return v === null || typeof v !== 'object';
-  }) : [];
+  // Helper to flatten an object into dotted paths (used for fields and properties)
+  function flattenObject(obj, prefix = '') {
+    const result = {};
+    for (const [key, value] of Object.entries(obj || {})) {
+      const fullPath = prefix ? `${prefix}.${key}` : key;
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        Object.assign(result, flattenObject(value, fullPath));
+      } else {
+        result[fullPath] = value;
+      }
+    }
+    return result;
+  }
+
+  // Get available fields from entityData (flattened, e.g. "version_group.name")
+  const flatData = entityData && typeof entityData === 'object' && !Array.isArray(entityData)
+    ? flattenObject(entityData) : {};
+  const availableFields = Object.keys(flatData).filter(k => {
+    const v = flatData[k];
+    return v === null || typeof v !== 'object' || Array.isArray(v);
+  });
 
   // Get all extraction sources for this entity type
   const extractionSources = getEntitySources(entityType);
@@ -457,20 +473,6 @@ export function showMappedNodeDetails(nodeData, entityConfig, parents = [], chil
     `;
   }
 
-  // Helper to flatten an object into dotted paths
-  function flattenObject(obj, prefix = '') {
-    const result = {};
-    for (const [key, value] of Object.entries(obj || {})) {
-      const fullPath = prefix ? `${prefix}.${key}` : key;
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        Object.assign(result, flattenObject(value, fullPath));
-      } else {
-        result[fullPath] = value;
-      }
-    }
-    return result;
-  }
-
   // Helper to get a short summary of an object (first few primitive fields)
   function getItemSummary(item) {
     if (!item || typeof item !== 'object') return formatValue(item);
@@ -500,9 +502,7 @@ export function showMappedNodeDetails(nodeData, entityConfig, parents = [], chil
     const COMMON_COLOR = '#8b949e';
 
     // Flatten entityData to handle nested properties with paths like "address.city"
-    const flattenedData = flattenObject(entityData);
-
-    for (const [path, value] of Object.entries(flattenedData)) {
+    for (const [path, value] of Object.entries(flatData)) {
       // Skip arrays
       if (Array.isArray(value)) continue;
 
